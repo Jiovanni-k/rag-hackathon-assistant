@@ -52,8 +52,15 @@ def add(chunks, batch=256):
                 metadatas=[c.metadata() for c in part], embeddings=embed([c.text for c in part], "passage"))
 
 
-def count():
-    return collection().count()
+def delete_source(source):
+    """Remove every chunk of one document."""
+    collection().delete(where={"source": source})
+
+
+def count(source=None):
+    if source is None:
+        return collection().count()
+    return len(collection().get(where={"source": source}, include=[])["ids"])
 
 
 def all_chunks():

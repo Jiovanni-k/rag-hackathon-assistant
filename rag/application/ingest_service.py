@@ -21,6 +21,29 @@ def load_all_chunks(folder=None):
     return chunks, report
 
 
+def index_file(path, title=None):
+    """Add (or replace) one document in the index without rebuilding everything.
+    Returns (chunk_count, page_count)."""
+    path = Path(path)
+    if path.suffix.lower() not in SUPPORTED:
+        raise ValueError(f"Unsupported file type: {path.suffix}")
+    metadata = load_metadata(path.parent)
+    if title:
+        metadata[path.name] = {**metadata.get(path.name, {}), "title": title}
+    doc_title, blocks = load_document(path, metadata)
+    chunks = make_chunks(path.name, doc_title, blocks, config.CHUNK_CHARS)
+    vector_store.delete_source(path.name)
+    vector_store.add(chunks)
+    keyword_index.invalidate()
+    pages = max((b.page for b in blocks), default=0)
+    return len(chunks), pages
+
+
+def remove_file(name):
+    vector_store.delete_source(name)
+    keyword_index.invalidate()
+
+
 def build_index(folder=None, verbose=False):
     """Delete the old index and store every chunk again. Returns the number of chunks."""
     chunks, report = load_all_chunks(folder)
