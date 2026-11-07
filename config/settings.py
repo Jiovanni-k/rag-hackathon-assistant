@@ -78,10 +78,17 @@ TEMPLATES = [{
     ]},
 }]
 
-DATABASES = {"default": {
-    "ENGINE": "django.db.backends.sqlite3",
-    "NAME": Path(os.getenv("DJANGO_DB_PATH", BASE_DIR / "db.sqlite3")),
-}}
+if os.getenv("DATABASE_URL"):
+    # Hosted database (e.g. Render PostgreSQL): survives restarts and redeploys.
+    import dj_database_url
+    DATABASES = {"default": dj_database_url.parse(os.environ["DATABASE_URL"], conn_max_age=600,
+                                                  conn_health_checks=True)}
+else:
+    # Local development: a SQLite file next to manage.py.
+    DATABASES = {"default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": Path(os.getenv("DJANGO_DB_PATH", BASE_DIR / "db.sqlite3")),
+    }}
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
