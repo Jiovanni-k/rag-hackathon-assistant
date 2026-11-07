@@ -12,6 +12,8 @@ djangorestframework==3.18.3
 django-cors-headers==4.9.0
 whitenoise==6.12.0
 gunicorn==26.2.0      # production server (Linux); on Windows use `manage.py runserver`
+dj-database-url==3.1.2   # reads DATABASE_URL (e.g. Render PostgreSQL); SQLite when unset
+psycopg[binary]==3.3.8   # PostgreSQL driver
 
 # Backup demo UI
 gradio==6.31.0
