@@ -1,0 +1,41 @@
+{% extends "web/base.html" %}
+{% load static %}
+{% block content %}
+<div class="chat-layout">
+  <aside class="sidebar" id="sidebar">
+    <button class="btn btn-primary btn-block" id="new-chat" type="button" data-i18n="newChat">+ محادثة جديدة</button>
+    <h2 class="sidebar-title" data-i18n="conversations">محادثاتي</h2>
+    <ul class="conv-list" id="conv-list"></ul>
+    <p class="muted small" id="conv-empty" hidden data-i18n="noConversations">لا توجد محادثات بعد.</p>
+  </aside>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <section class="chat">
+    <div class="messages" id="messages" aria-live="polite">
+      <div class="welcome" id="welcome">
+        {% include "web/partials/cat.html" with cls="cat-hero" %}
+        <h1 data-i18n="welcomeTitle">أهلًا! أنا قطّ الحرم 🐾</h1>
+        <p class="muted" data-i18n="welcomeText">صرلي هون أكتر من أي حدا، وبعرف كل الأنظمة والخطط الدراسية. اسألني بلهجتك، وبجاوبك من مستندات الجامعة الرسمية مع المصدر.</p>
+        <h2 class="suggest-title" data-i18n="suggestTitle">جرّب تسأل:</h2>
+        <div class="chips" id="suggestions"></div>
+      </div>
+    </div>
+
+    <form class="composer" id="composer" autocomplete="off">
+      <textarea id="question" rows="1" maxlength="1000" required
+                data-i18n-placeholder="placeholder" placeholder="اكتب سؤالك هنا…" dir="auto"></textarea>
+      <button type="submit" class="btn btn-primary send-btn" id="send" data-i18n-aria="send" aria-label="إرسال">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round" class="send-icon"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+    </form>
+  </section>
+</div>
+
+<template id="cat-avatar">{% include "web/partials/cat.html" with cls="cat-avatar" %}</template>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'web/js/markdown.js' %}"></script>
+<script src="{% static 'web/js/chat.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% load static %}<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ PRODUCT_NAME }}{% endblock %}</title>
+  <script>
+    // Apply the saved language before first paint (no RTL/LTR flash).
+    (function () {
+      var lang = "ar";
+      try { lang = localStorage.getItem("lang") || "ar"; } catch (e) {}
+      document.documentElement.lang = lang;
+      document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'web/css/app.css' %}">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none' stroke='%23F28C28' stroke-width='4' stroke-linecap='round'%3E%3Cpath d='M14 26 L12 8 L27 18M50 26 L52 8 L37 18'/%3E%3Ccircle cx='32' cy='36' r='20'/%3E%3C/svg%3E">
+</head>
+<body class="page-{{ page|default:'plain' }}">
+  <header class="topbar">
+    <div class="topbar-start">
+      {% if page == "chat" %}
+        <button class="icon-btn only-mobile" id="sidebar-toggle" type="button" data-i18n-aria="conversations" aria-label="conversations">☰</button>
+      {% endif %}
+      <a class="brand" href="{% url 'web:chat' %}">
+        {% include "web/partials/cat.html" with cls="cat-logo" %}
+        <span class="brand-name" data-ar="{{ PRODUCT_NAME }}" data-en="{{ PRODUCT_NAME_EN }}">{{ PRODUCT_NAME }}</span>
+      </a>
+    </div>
+    <nav class="topbar-nav">
+      {% if user.is_authenticated %}
+        <a href="{% url 'web:chat' %}" class="{% if page == 'chat' %}active{% endif %}" data-i18n="navChat">المحادثة</a>
+        {% if user.is_staff %}
+          <a href="{% url 'web:staff_documents' %}" class="{% if page == 'documents' %}active{% endif %}" data-i18n="navDocuments">المستندات</a>
+          <a href="{% url 'web:staff_analytics' %}" class="{% if page == 'analytics' %}active{% endif %}" data-i18n="navAnalytics">الإحصائيات</a>
+          <a href="{% url 'admin:index' %}" data-i18n="navAdmin">لوحة الإدارة</a>
+        {% endif %}
+      {% endif %}
+    </nav>
+    <div class="topbar-end">
+      <button class="lang-btn" id="lang-toggle" type="button">English</button>
+      {% if user.is_authenticated %}
+        <span class="user-chip" title="{{ user.username }}">{{ user.username }}</span>
+        <form method="post" action="{% url 'web:logout' %}" class="inline-form">
+          {% csrf_token %}
+          <button type="submit" class="link-btn" data-i18n="logout">خروج</button>
+        </form>
+      {% endif %}
+    </div>
+  </header>
+
+  <main class="main">{% block content %}{% endblock %}</main>
+
+  <footer class="footer" data-i18n="footer">
+    للقرارات المهمة (التسجيل، الانسحاب، التخرج) تأكّد دائمًا من دائرة القبول والتسجيل.
+  </footer>
+
+  <script src="{% static 'web/js/i18n.js' %}"></script>
+  <script src="{% static 'web/js/api.js' %}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

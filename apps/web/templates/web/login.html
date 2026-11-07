@@ -1,0 +1,37 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="login-wrap">
+  <div class="login-card">
+    {% include "web/partials/cat.html" with cls="cat-hero" %}
+    <h1 class="brand-name" data-ar="{{ PRODUCT_NAME }}" data-en="{{ PRODUCT_NAME_EN }}">{{ PRODUCT_NAME }}</h1>
+    <p class="muted" data-i18n="loginIntro">قطّ الحرم الجامعي: موجود هون من زمان، وبعرف كل الأنظمة… وبعطيك المصدر دايمًا.</p>
+
+    {% if form.errors %}
+      <div class="alert alert-error" data-i18n="loginError">اسم المستخدم أو كلمة المرور غير صحيحة.</div>
+    {% endif %}
+
+    <form method="post" class="form">
+      {% csrf_token %}
+      <label>
+        <span data-i18n="username">اسم المستخدم</span>
+        <input type="text" name="username" autocomplete="username" required autofocus
+               value="{{ form.username.value|default:'' }}">
+      </label>
+      <label>
+        <span data-i18n="password">كلمة المرور</span>
+        <input type="password" name="password" autocomplete="current-password" required>
+      </label>
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit" class="btn btn-primary btn-block" data-i18n="login">دخول</button>
+    </form>
+
+    {% if SHOW_DEMO_ACCOUNTS %}
+    <p class="demo-hint muted">
+      <span data-i18n="demoAccounts">حسابات تجريبية:</span>
+      <code>student</code> / <code>student-demo-2026</code> ·
+      <code>admin</code> / <code>admin-demo-2026</code>
+    </p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

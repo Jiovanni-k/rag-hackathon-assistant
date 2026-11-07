@@ -1,8 +1,7 @@
 # Smart Academic Advisor — API Reference (v1)
 
-> **Status:** contract for the frontend. The Django backend is being built against this document.
-> Until it is live, use the example responses below as mock data. If you need a change, ask before
-> building around it so backend and frontend stay in sync.
+> **Status:** implemented (Django + DRF). Run it locally with `python manage.py runserver` — see README.
+> If you need a change, ask before building around it so backend and frontend stay in sync.
 
 ---
 
@@ -68,6 +67,8 @@ Every error has the same shape:
 | 401 | `unauthorized` | No token / invalid token / wrong login |
 | 403 | `forbidden` | Not an admin |
 | 404 | `not_found` | Resource does not exist or belongs to another user |
+| 405 | `method_not_allowed` | Wrong HTTP method for this path |
+| 409 | `conflict` | A re-index is already running |
 | 413 | `file_too_large` | Upload over 20 MB |
 | 415 | `unsupported_file_type` | Upload is not `.pdf` or `.txt` |
 | 429 | `rate_limited` | Too many questions (limit: 20 per minute per user) |
@@ -90,12 +91,16 @@ Show `error.message` to the user; it is safe to display.
 {
   "document_id": 3,
   "document": "BU_English_Catalog.pdf",
+  "title": "جامعة بيت لحم — الدليل الأكاديمي (Bethlehem University Catalog)",
   "page": 29,
-  "article": "10. WITHDRAWAL",
+  "article": "ACADEMIC REGULATIONS — 11. WITHDRAWAL",
   "snippet": "Students may officially withdraw from a course up to the end of the tenth week of classes..."
 }
 ```
-`article` may be `null` when the section is unknown.
+- `page` is `null` for `.txt` documents (they have no pages) — show `article` instead.
+- `article` (the section) may be `null` when the section is unknown.
+- `document_id` may be `null` if the file is not registered as a Document.
+- Suggested chip text: `title · ص {page}` or `title · {article}`.
 
 ### Message
 ```json
@@ -114,6 +119,7 @@ Show `error.message` to the user; it is safe to display.
 | `role` | `"user"` or `"assistant"` |
 | `content` | **Markdown** (may contain lists, bold, tables). Render it as markdown |
 | `refused` | `true` when the system could not answer from the documents or the question was out of scope. Style it differently (e.g. neutral/yellow box) |
+| `reason` | `"answered"`, `"not_found"` (not in the documents), `"out_of_scope"` (not an academic question), `"greeting"`, or `""` for user messages |
 | `feedback` | `null`, `"up"` or `"down"` (assistant messages only) |
 
 ### Conversation
@@ -178,9 +184,10 @@ Show `error.message` to the user; it is safe to display.
 
 #### `GET /health/`
 ```json
-{ "status": "ok", "documents": 3, "chunks": 1379 }
+{ "status": "ok", "documents": 7, "chunks": 1602, "reindexing": false }
 ```
-`status` is `"ok"` or `"degraded"` (e.g. index empty). Useful for a status dot in the admin page.
+`status` is `"ok"` or `"degraded"` (e.g. index empty). `reindexing` is `true` while a full re-index runs.
+Useful for a status dot in the admin page.
 
 ---
 
@@ -348,11 +355,12 @@ Response `200`: a **Document**.
 Removes the file and its chunks from the index. Response `204`.
 
 #### `POST /documents/reindex/`
-Rebuilds the index from all documents. No body. Response `202`:
+Rebuilds the index from all documents (takes ~5 minutes). Files copied into the server's
+`documents/` folder by hand are registered automatically. No body. Response `202`:
 ```json
-{ "status": "processing", "documents": 3 }
+{ "status": "processing", "documents": 7 }
 ```
-Poll `/health/` until `chunks` is updated.
+Poll `/health/` until `reindexing` is `false`. A second call while one is running → `409 conflict`.
 
 ---
 
@@ -403,3 +411,4 @@ A high `refused_count` means the documents are missing that information — usef
 | Version | Date | Change |
 |---|---|---|
 | v1 | 2026-11-07 | First version |
+| v1.1 | 2026-11-07 | Implemented. Source gains `title`; `page` is `null` for .txt; health gains `reindexing`; reindex may return `409`; questions without letters are rejected (`400`) |

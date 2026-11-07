@@ -1,0 +1,44 @@
+[
+  {"id": 1, "type": "direct", "question": "ما الحد الأدنى للمعدل التراكمي المطلوب للتخرج من جامعة بيت لحم؟",
+   "retrieve_any": ["minimum GPA of 2.00"], "answer_all": ["2"]},
+  {"id": 2, "type": "direct", "question": "حتى متى يمكنني الانسحاب من مساق في جامعة بيت لحم؟",
+   "retrieve_any": ["no official withdrawal from a course", "officially withdraw"], "answer_all": ["الأسبوع"]},
+  {"id": 3, "type": "direct", "question": "كم ساعة معتمدة يحتاج طالب الطب في جامعة النجاح للتخرج؟",
+   "retrieve_any": ["266"], "answer_all": ["266"]},
+
+  {"id": 4, "type": "dialect", "question": "شو بصير إذا غبت كتير عن المحاضرات ببيت لحم؟",
+   "retrieve_any": ["attend all classes", "Attendance"], "answer_all": []},
+  {"id": 5, "type": "dialect", "question": "إذا رسبت بمادة إجبارية ببيت لحم لازم أعيدها؟",
+   "retrieve_any": ["fail a required course must repeat"], "answer_all": []},
+
+  {"id": 6, "type": "table", "question": "كم ساعة معتمدة لمساق البرمجة الكينونية في خضوري؟",
+   "retrieve_any": ["19041204"], "answer_all": ["4"]},
+  {"id": 7, "type": "table", "question": "شو المتطلب السابق لمادة هندسة البرمجيات بعلم الحاسوب بخضوري؟",
+   "retrieve_any": ["19041343"], "answer_all": ["19041341"]},
+  {"id": 8, "type": "table", "question": "كم ساعة لازم أخلص عشان أتخرج من القانون بجامعة النجاح؟",
+   "retrieve_any": ["139"], "answer_all": ["139"]},
+  {"id": 9, "type": "table", "question": "كم ساعة يحتاج طالب بكالوريوس المحاسبة في جامعة بيت لحم للتخرج؟",
+   "retrieve_any": ["Accounting 128"], "answer_all": ["128"]},
+  {"id": 10, "type": "table", "question": "أنا سنة ثانية علم حاسوب بخضوري، شو المواد اللي لازم آخذها بالفصل الثاني؟",
+   "retrieve_any": ["السنة الثانية - الفصل الثاني"], "answer_all": ["تركيب البيانات"]},
+
+  {"id": 11, "type": "multi_doc", "question": "أنا طالب في جامعة بيت لحم، ما شروط التخرج من حيث المعدل وعدد الساعات التي يجب دراستها في الجامعة نفسها؟",
+   "retrieve_any": ["minimum GPA of 2.00"], "answer_all": ["2", "60"]},
+
+  {"id": 12, "type": "follow_up",
+   "history": [{"role": "user", "content": "ما الحد الأدنى للمعدل للتخرج من جامعة بيت لحم؟"},
+               {"role": "assistant", "content": "الحد الأدنى للمعدل التراكمي للتخرج من جامعة بيت لحم هو 2.00 [1]."}],
+   "question": "وكم ساعة لازم أدرس بالجامعة نفسها؟",
+   "retrieve_any": ["minimum of 60 credits"], "answer_all": ["60"]},
+  {"id": 13, "type": "follow_up",
+   "history": [{"role": "user", "content": "شو المتطلب السابق لمادة هندسة البرمجيات بخضوري؟"},
+               {"role": "assistant", "content": "المتطلب السابق لمساق هندسة البرمجيات (19041343) هو المساق 19041341 [1]."}],
+   "question": "وكم ساعة معتمدة إلها؟",
+   "retrieve_any": ["19041343"], "answer_all": ["3"]},
+
+  {"id": 14, "type": "not_in_docs", "question": "متى امتحان مادة الخوارزميات الأسبوع القادم؟", "refuse": true},
+  {"id": 15, "type": "not_in_docs", "question": "شو رقم تلفون عميد كلية القانون بجامعة النجاح؟", "refuse": true},
+
+  {"id": 16, "type": "out_of_scope", "question": "اكتب لي قصيدة عن الجامعة", "refuse": true},
+  {"id": 17, "type": "out_of_scope", "question": "مين فاز بكأس العالم 2022؟", "refuse": true}
+]
