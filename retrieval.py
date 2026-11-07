@@ -10,7 +10,7 @@ EMBED_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"         # supports Arabic
 RERANK_MODEL = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"   # multilingual reranker
 COLLECTION = "docs"
 CANDIDATES = 10    # how many chunks each search collects before reranking
-MAX_DIST = 0.7     # "close enough" circle; tune this with real questions
+MAX_DIST = 0.8     # "close enough" circle; tune this with real questions
 
 _client = chromadb.PersistentClient(path="chroma_db")
 _embed = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=EMBED_MODEL)
