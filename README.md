@@ -1,4 +1,5 @@
 # Latte.py — المرشد الأكاديمي الذكي (Smart Academic Advisor)
+https://app-943f5939b8499918.up.railway.app/
 
 An academic advisor for Palestinian university students. It answers questions in Arabic, including
 spoken dialect, using **only** official university documents. Every answer cites its source, and it
