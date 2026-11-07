@@ -1,0 +1,43 @@
+{% extends "web/base.html" %}
+{% load static %}
+{% block content %}
+<section class="staff">
+  <div class="staff-head">
+    <h1 data-i18n="docsTitle">مستندات الجامعة</h1>
+    <div>
+      <span class="muted small"><span class="status-dot" id="health-dot"></span><span data-i18n="indexStatus">حالة الفهرس</span>:
+        <strong id="health-text">…</strong></span>
+      <button class="btn btn-ghost" id="reindex" type="button" data-i18n="reindex">إعادة فهرسة الكل</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 data-i18n="uploadTitle">رفع مستند جديد</h2>
+    <form id="upload-form" class="grid-form">
+      <label><span data-i18n="file">الملف</span>
+        <input type="file" name="file" accept=".pdf,.txt" required></label>
+      <label><span data-i18n="docTitle">العنوان (اختياري)</span>
+        <input type="text" name="title" maxlength="200" dir="auto"></label>
+      <label><span data-i18n="year">سنة الإصدار</span>
+        <input type="number" name="version_year" min="1950" max="2100" inputmode="numeric"></label>
+      <button type="submit" class="btn btn-primary" data-i18n="upload">رفع وفهرسة</button>
+    </form>
+    <div id="upload-msg" hidden></div>
+  </div>
+
+  <div class="card">
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr>
+          <th data-i18n="colTitle">العنوان</th><th data-i18n="colFile">الملف</th><th data-i18n="colYear">السنة</th>
+          <th data-i18n="colStatus">الحالة</th><th data-i18n="colChunks">المقاطع</th>
+          <th data-i18n="colUploaded">تاريخ الرفع</th><th></th>
+        </tr></thead>
+        <tbody id="docs-body"></tbody>
+      </table>
+    </div>
+    <p class="empty" id="docs-empty" hidden data-i18n="noDocs">لا توجد مستندات.</p>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{% static 'web/js/staff_documents.js' %}"></script>{% endblock %}

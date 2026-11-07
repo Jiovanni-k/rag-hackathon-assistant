@@ -11,4 +11,5 @@ api_v1 = [
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/", include(api_v1)),
+    path("", include("apps.web.urls")),            # web UI (templates + vanilla JS)
 ]

@@ -119,6 +119,7 @@ Show `error.message` to the user; it is safe to display.
 | `role` | `"user"` or `"assistant"` |
 | `content` | **Markdown** (may contain lists, bold, tables). Render it as markdown |
 | `refused` | `true` when the system could not answer from the documents or the question was out of scope. Style it differently (e.g. neutral/yellow box) |
+| `reason` | `"answered"`, `"not_found"` (not in the documents), `"out_of_scope"` (not an academic question), `"greeting"`, or `""` for user messages |
 | `feedback` | `null`, `"up"` or `"down"` (assistant messages only) |
 
 ### Conversation

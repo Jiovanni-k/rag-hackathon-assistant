@@ -12,8 +12,12 @@ Built for the IEEE RAG Hackathon at Bethlehem University.
 ## Architecture
 
 ```
+                         ┌──────── Web UI (apps/web): templates + CSS + JS ─┐
+ Browser   ───────────▶  │ login · chat · staff documents · staff analytics │
+                         └──────────────────────┬──────────────────────────┘
+                                                │ fetch /api/v1 (session + CSRF)
                          ┌──────────── Django REST API (apps/) ────────────┐
- Frontend  ── HTTPS ──▶  │ accounts · chat · documents · analytics         │
+ Other clients (Token) ▶ │ accounts · chat · documents · analytics         │
                          └──────────────────────┬──────────────────────────┘
                                                 │ calls
                          ┌──────────── RAG core (rag/, no Django) ─────────┐
@@ -27,6 +31,31 @@ Built for the IEEE RAG Hackathon at Bethlehem University.
 
 Each layer only calls the layer below it. The RAG core has no Django code, so the evaluation and
 the Gradio demo use it directly.
+
+### Frontend (`apps/web/`)
+Theme: **the campus cat** 🐾, a friendly senior student who knows every rule and always shows the source.
+- **Django templates + plain CSS + vanilla JavaScript.** No npm and no build step: it runs with the
+  standard Django commands. Templates are in `apps/web/templates/web/`, and CSS/JS in `apps/web/static/web/`.
+- Pages are thin shells. All data comes from the same REST API (`/api/v1`) that other clients use,
+  through `fetch` with the session cookie and an `X-CSRFToken` header on every POST/PATCH/DELETE.
+- **Chat:** Arabic first (RTL) with an English toggle (LTR); `dir="auto"` handles mixed Arabic/English
+  text. Dialect suggestion chips, markdown answers (tables, numbered steps), source cards with a
+  collapsible snippet, an amber refusal box (pointing to the Admissions & Registration office), and
+  👍/👎 feedback. Saved conversations can be reopened, renamed and deleted. Follow-up questions work
+  because each question is sent with its `conversation_id`, and the server adds the earlier turns.
+  Loading indicator, and friendly errors for network problems, rate limits and an unavailable
+  (or out-of-quota) LLM.
+- **Staff pages:** document upload with background indexing, delete, full re-index and index status;
+  analytics with question count, refusal rate, average answer time, feedback, questions per day and
+  most-asked questions. The Django admin (`/admin/`) manages users and data.
+- **Small pieces:** `i18n.js` (UI strings and RTL/LTR), `api.js` (fetch, CSRF and friendly errors),
+  `markdown.js` (a safe renderer: everything is escaped first), `chat.js`, `staff_documents.js`,
+  `staff_analytics.js`.
+- The product name is set in one place: `PRODUCT_NAME` / `PRODUCT_NAME_EN` in `.env`
+  (defaults in `config/settings.py`).
+- The AI models are loaded in the background when the server starts, so the first question is not slowed down.
+- Works on phones (the sidebar becomes a slide-in drawer). The Tajawal font comes from Google Fonts,
+  with system fonts as an offline fallback.
 
 ### How a question is answered (`rag/application/ask_service.py`)
 1. **Rewrite** (one fast LLM call): classify the question (academic, greeting or out of scope),
@@ -58,21 +87,34 @@ python -m venv .venv
 pip install -r requirements.txt
 copy .env.example .env            # then put your GEMINI_API_KEY in .env
 python manage.py migrate
-python manage.py createsuperuser  # admin account (for document upload + dashboard)
+python manage.py create_demo_accounts       # demo student + demo admin (see below)
 python manage.py sync_documents --reindex   # register documents/ and build the index (~5 min)
+python manage.py runserver                  # open http://localhost:8000
 ```
 
 The first run downloads the embedding and reranking models (about 1 GB).
+
+### Demo accounts
+| Role | Username | Password | Can use |
+|---|---|---|---|
+| Student | `student` | `student-demo-2026` | Chat, saved conversations, feedback |
+| Admin (staff) | `admin` | `admin-demo-2026` | Everything above, plus Documents, Analytics and the Django admin |
+
+These are demo accounts with no real personal data. Override the passwords with
+`DEMO_STUDENT_PASSWORD` / `DEMO_ADMIN_PASSWORD` in `.env`, and set `SHOW_DEMO_ACCOUNTS=false` to hide
+them from the login page.
 
 ## Run
 
 | What | Command |
 |---|---|
-| API server | `python manage.py runserver` → `http://localhost:8000/api/v1/` (see [docs/API.md](docs/API.md)) |
+| **Web app** | `python manage.py runserver` → `http://localhost:8000` |
+| API | `http://localhost:8000/api/v1/` (see [docs/API.md](docs/API.md)) |
 | Django admin | `http://localhost:8000/admin/` |
-| Backup demo UI | `python app.py` (Gradio) |
+| Backup demo UI | `python app.py` (Gradio; kept as a fallback) |
 | Evaluation | `python -m evaluation.run_eval` |
-| API tests (offline, LLM mocked) | `python manage.py test tests` |
+| API + web tests (offline, LLM mocked) | `python manage.py test tests` |
+| Production static files | `DJANGO_DEBUG=false python manage.py collectstatic` |
 | Add a study plan from a web page | `python scripts/plan_to_text.py URL --university "..." --program "..." --out documents/X.txt` |
 
 ## Evaluation results
@@ -110,14 +152,20 @@ Technical University – Kadoorie. No personal student data is used. No model is
 
 ## Security
 - No secrets in code: the API key and Django secret come from `.env` (see `.env.example`), which is git-ignored.
-- Token authentication. Admin-only endpoints for documents and analytics. Per-user rate limit on questions.
+- Session login for the web UI, with CSRF protection on every POST/PATCH/DELETE (logout is POST
+  only). Token authentication for other clients. Admin-only pages and endpoints for documents and
+  analytics. Per-user rate limit on questions.
+- The API key never reaches the browser: the browser only talks to our Django server.
+- The answer markdown is escaped before rendering, so documents cannot inject HTML or scripts into the page.
 - Uploads are limited to `.pdf`/`.txt` up to 20 MB, and file names are sanitised.
 
 ## AI usage disclosure
 We used AI assistants (Claude by Anthropic, including Claude Code) to explain RAG concepts and to
-help design, write, test and review the code and documentation. The team understands and can
-explain every part. The base structure follows the BinX Tech RAG Bootcamp lecture code, extended
-with the layered RAG core, Arabic support, the Django API and the evaluation.
+help design, write, test and review the code and documentation. **The web frontend (`apps/web/`:
+templates, CSS, JavaScript and its tests) was generated by Claude Code** from our theme and feature
+brief, and reviewed and tested by the team. The team understands and can explain every part. The
+base structure follows the BinX Tech RAG Bootcamp lecture code, extended with the layered RAG core,
+Arabic support, the Django API, the web UI and the evaluation.
 
 ## Team
 - [Name] — Technical development

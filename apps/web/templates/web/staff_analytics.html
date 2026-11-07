@@ -1,0 +1,42 @@
+{% extends "web/base.html" %}
+{% load static %}
+{% block content %}
+<section class="staff">
+  <div class="staff-head">
+    <h1 data-i18n="analyticsTitle">لوحة الإحصائيات</h1>
+    <label class="muted small"><span data-i18n="period">الفترة</span>
+      <select id="days">
+        <option value="7" data-i18n="days7">آخر 7 أيام</option>
+        <option value="30" selected data-i18n="days30">آخر 30 يومًا</option>
+        <option value="90" data-i18n="days90">آخر 90 يومًا</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-label" data-i18n="totalQuestions">عدد الأسئلة</div><div class="stat-value" id="s-total">—</div></div>
+    <div class="stat"><div class="stat-label" data-i18n="activeUsers">المستخدمون النشطون</div><div class="stat-value" id="s-users">—</div></div>
+    <div class="stat"><div class="stat-label" data-i18n="refusalRate">نسبة الرفض</div><div class="stat-value accent" id="s-refusal">—</div></div>
+    <div class="stat"><div class="stat-label" data-i18n="avgLatency">متوسط زمن الإجابة</div><div class="stat-value" id="s-latency">—</div></div>
+    <div class="stat"><div class="stat-label" data-i18n="feedbackLabel">تقييم الإجابات</div><div class="stat-value" id="s-feedback">—</div></div>
+  </div>
+
+  <div class="card">
+    <h2 data-i18n="perDay">الأسئلة يوميًا</h2>
+    <div id="chart"></div>
+  </div>
+
+  <div class="card">
+    <h2 data-i18n="topQuestions">الأسئلة الأكثر تكرارًا</h2>
+    <p class="muted small" data-i18n="refusedHint"></p>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr><th>#</th><th data-i18n="colQuestion">السؤال</th><th data-i18n="colCount">التكرار</th><th data-i18n="colRefused">مرفوض</th></tr></thead>
+        <tbody id="top-body"></tbody>
+      </table>
+    </div>
+    <p class="empty" id="top-empty" hidden data-i18n="noData">لا توجد بيانات بعد.</p>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{% static 'web/js/staff_analytics.js' %}"></script>{% endblock %}

@@ -38,7 +38,18 @@ INSTALLED_APPS = [
     "apps.documents",
     "apps.chat",
     "apps.analytics",
+    "apps.web",
 ]
+
+# Product name shown in the UI (one place to change it; can also be set in .env)
+PRODUCT_NAME = os.getenv("PRODUCT_NAME", "المرشد الأكاديمي الذكي")
+PRODUCT_NAME_EN = os.getenv("PRODUCT_NAME_EN", "Smart Academic Advisor")
+# Show the demo account credentials on the login page (for judges). Turn off for real users.
+SHOW_DEMO_ACCOUNTS = os.getenv("SHOW_DEMO_ACCOUNTS", "true").lower() == "true"
+
+LOGIN_URL = "web:login"
+LOGIN_REDIRECT_URL = "web:chat"
+LOGOUT_REDIRECT_URL = "web:login"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -63,6 +74,7 @@ TEMPLATES = [{
         "django.template.context_processors.request",
         "django.contrib.auth.context_processors.auth",
         "django.contrib.messages.context_processors.messages",
+        "apps.web.context_processors.product",
     ]},
 }]
 
@@ -87,7 +99,9 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    # Production: hashed + compressed files (needs `collectstatic`). Development/tests: plain files.
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage" if DEBUG
+                    else "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -100,7 +114,11 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173")
 
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework.authentication.TokenAuthentication"],
+    # Token: external clients (mobile app, API tools). Session: the Django web UI in apps/web,
+    # which also enforces CSRF on every POST/PATCH/DELETE. Token is first so unauthenticated
+    # requests still get 401 (not 403).
+    "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework.authentication.TokenAuthentication",
+                                       "rest_framework.authentication.SessionAuthentication"],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
