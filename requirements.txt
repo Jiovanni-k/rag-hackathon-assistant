@@ -4,4 +4,4 @@ sentence-transformers
 rank-bm25
 gradio
 python-dotenv
-pypdf
+pymupdf
