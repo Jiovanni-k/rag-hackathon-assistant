@@ -138,8 +138,8 @@ free RAM for the AI models, an internet connection (the answers come from the Ge
 Gemini API key from https://aistudio.google.com/apikey.
 
 ```bash
-git clone https://github.com/Jiovanni-k/rag-hackathon-assistant.git
-cd rag-hackathon-assistant
+git clone https://github.com/Jiovanni-k/qitta-academic-advisor.git
+cd qitta-academic-advisor
 python -m venv .venv
 .venv\Scripts\activate            # Windows   (Mac/Linux: source .venv/bin/activate)
 pip install -r requirements.txt
