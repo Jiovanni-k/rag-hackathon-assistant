@@ -16,14 +16,15 @@
     var box = document.getElementById("chart");
     box.innerHTML = "";
     if (!perDay.length) { box.appendChild(el("p", "empty", t("noData"))); return; }
-    // Fill missing days with 0 so the bars are evenly spaced in time.
+    // Fill missing days with 0 so the bars are evenly spaced in time. The server groups by UTC
+    // date, so the keys are built in UTC too (local dates would shift bars near midnight).
     var counts = {};
     perDay.forEach(function (d) { counts[d.date] = d.count; });
     var series = [];
-    var today = new Date();
+    var now = new Date();
     for (var i = days - 1; i >= 0; i--) {
-      var d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
-      var key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+      var key = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - i))
+        .toISOString().slice(0, 10);
       series.push({ date: key, count: counts[key] || 0 });
     }
     var max = Math.max.apply(null, series.map(function (s) { return s.count; })) || 1;

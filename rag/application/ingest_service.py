@@ -7,9 +7,12 @@ from rag.infrastructure.chunker import make_chunks
 from rag.infrastructure.loaders import SUPPORTED, load_document, load_metadata
 
 
-def load_all_chunks(folder=None):
+def load_all_chunks(folder=None, titles=None):
+    """titles: optional {file name: title} that overrides metadata.json and the file's own title."""
     folder = Path(folder or config.DOCUMENTS_DIR)
     metadata = load_metadata(folder)
+    for name, title in (titles or {}).items():
+        metadata[name] = {**metadata.get(name, {}), "title": title}
     chunks, report = [], []
     for path in sorted(folder.iterdir()):
         if path.suffix.lower() not in SUPPORTED:
@@ -44,9 +47,9 @@ def remove_file(name):
     keyword_index.invalidate()
 
 
-def build_index(folder=None, verbose=False):
+def build_index(folder=None, verbose=False, titles=None):
     """Delete the old index and store every chunk again. Returns the number of chunks."""
-    chunks, report = load_all_chunks(folder)
+    chunks, report = load_all_chunks(folder, titles)
     vector_store.reset()
     vector_store.add(chunks)
     keyword_index.invalidate()

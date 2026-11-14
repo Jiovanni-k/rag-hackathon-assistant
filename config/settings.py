@@ -15,9 +15,11 @@ def env_list(name, default=""):
 
 DEBUG = os.getenv("DJANGO_DEBUG", "true").lower() == "true"
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
+if SECRET_KEY == "change-me":          # the placeholder from .env.example
+    SECRET_KEY = None
 if not SECRET_KEY:
     if not DEBUG:
-        raise RuntimeError("DJANGO_SECRET_KEY must be set when DJANGO_DEBUG=false")
+        raise RuntimeError("DJANGO_SECRET_KEY must be set to a long random value when DJANGO_DEBUG=false")
     SECRET_KEY = "dev-only-insecure-key"
     warnings.warn("Using an insecure development SECRET_KEY; set DJANGO_SECRET_KEY in .env")
 
@@ -46,6 +48,9 @@ PRODUCT_NAME = os.getenv("PRODUCT_NAME", "المرشد الأكاديمي الذ
 PRODUCT_NAME_EN = os.getenv("PRODUCT_NAME_EN", "Smart Academic Advisor")
 # Show the demo account credentials on the login page (for judges). Turn off for real users.
 SHOW_DEMO_ACCOUNTS = os.getenv("SHOW_DEMO_ACCOUNTS", "true").lower() == "true"
+# Used by `manage.py create_demo_accounts` and shown on the login page when SHOW_DEMO_ACCOUNTS is on.
+DEMO_STUDENT_PASSWORD = os.getenv("DEMO_STUDENT_PASSWORD") or "student-demo-2026"
+DEMO_ADMIN_PASSWORD = os.getenv("DEMO_ADMIN_PASSWORD") or "admin-demo-2026"
 
 LOGIN_URL = "web:login"
 LOGIN_REDIRECT_URL = "web:chat"
@@ -130,7 +135,8 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "EXCEPTION_HANDLER": "apps.core.errors.exception_handler",
-    "DEFAULT_THROTTLE_RATES": {"ask": os.getenv("ASK_RATE_LIMIT", "20/min")},
+    "DEFAULT_THROTTLE_RATES": {"ask": os.getenv("ASK_RATE_LIMIT", "20/min"),
+                               "auth": os.getenv("AUTH_RATE_LIMIT", "10/min")},   # login/register per IP
 }
 
 if not DEBUG:

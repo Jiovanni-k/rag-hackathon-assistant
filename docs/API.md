@@ -1,7 +1,7 @@
 # Smart Academic Advisor — API Reference (v1)
 
-> **Status:** implemented (Django + DRF). Run it locally with `python manage.py runserver` — see README.
-> If you need a change, ask before building around it so backend and frontend stay in sync.
+> The REST API behind the web app (Django + Django REST Framework). Run it locally with
+> `python manage.py runserver`; see the [README](../README.md) for setup.
 
 ---
 
@@ -9,8 +9,7 @@
 
 | Item | Value |
 |---|---|
-| Base URL (local) | `http://localhost:8000/api/v1` |
-| Base URL (production) | TBD (will be shared after deployment) |
+| Base URL | `http://localhost:8000/api/v1` (or `https://<your-host>/api/v1` when deployed) |
 | Format | JSON (`Content-Type: application/json`), except file upload (`multipart/form-data`) |
 | Encoding | UTF-8. Questions and answers are mostly **Arabic** |
 | Dates | ISO 8601 in UTC, e.g. `2026-11-07T10:42:13Z` |
@@ -29,10 +28,13 @@ Authorization: Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b
 - Admin endpoints (documents, analytics) also need `user.is_staff == true`.
   Use `is_staff` from `/auth/me/` to decide whether to show the admin pages.
 - Missing/invalid token → `401`. Logged in but not admin → `403`.
+- The built-in web UI uses the Django **session** cookie instead of a token. Session requests must
+  send the `X-CSRFToken` header (value of the `csrftoken` cookie) on every POST/PATCH/DELETE.
 
 ### CORS
 
-Local dev origins allowed: `http://localhost:3000`, `http://localhost:5173`. Tell the backend if you use another port.
+Allowed origins come from `CORS_ALLOWED_ORIGINS` in `.env` (default: `http://localhost:3000`,
+`http://localhost:5173`). Add your frontend's origin there if you use another one.
 
 ### Pagination
 
@@ -55,7 +57,7 @@ Every error has the same shape:
 {
   "error": {
     "code": "validation_error",
-    "message": "Question must not be empty.",
+    "message": "This field may not be blank.",
     "details": { "question": ["This field may not be blank."] }
   }
 }
@@ -71,7 +73,7 @@ Every error has the same shape:
 | 409 | `conflict` | A re-index is already running |
 | 413 | `file_too_large` | Upload over 20 MB |
 | 415 | `unsupported_file_type` | Upload is not `.pdf` or `.txt` |
-| 429 | `rate_limited` | Too many questions (limit: 20 per minute per user) |
+| 429 | `rate_limited` | Too many requests: questions (default 20 per minute per user) or login/register attempts (default 10 per minute per IP). The `Retry-After` header gives the seconds to wait |
 | 503 | `llm_unavailable` | The AI model is temporarily unavailable; show "try again" |
 | 500 | `server_error` | Anything else |
 
@@ -110,6 +112,7 @@ Show `error.message` to the user; it is safe to display.
   "content": "نعم، يمكنك الانسحاب من المادة حتى نهاية الأسبوع العاشر من الفصل...",
   "sources": [ /* Source objects; empty for user messages and refusals */ ],
   "refused": false,
+  "reason": "answered",
   "feedback": null,
   "created_at": "2026-11-07T10:42:13Z"
 }
@@ -241,22 +244,24 @@ Response `200`:
   "conversation": { "id": 21, "title": "الانسحاب من مادة", "created_at": "2026-11-07T10:41:58Z", "updated_at": "2026-11-07T10:42:13Z", "message_count": 2 },
   "question": {
     "id": 117, "role": "user", "content": "هل بقدر أنسحب من مادة؟ ولحد إمتى؟",
-    "sources": [], "refused": false, "feedback": null, "created_at": "2026-11-07T10:42:05Z"
+    "sources": [], "refused": false, "reason": "", "feedback": null, "created_at": "2026-11-07T10:42:05Z"
   },
   "answer": {
     "id": 118,
     "role": "assistant",
-    "content": "نعم، يمكنك الانسحاب رسميًا من المادة حتى **نهاية الأسبوع العاشر** من الفصل، وبعد ذلك لا يُقبل الانسحاب الرسمي.\n\n[BU_English_Catalog.pdf، صفحة 29]",
+    "content": "في جامعة بيت لحم، يمكنك الانسحاب رسميًا من المادة حتى **نهاية الأسبوع العاشر** من الفصل [1].",
     "sources": [
       {
         "document_id": 3,
         "document": "BU_English_Catalog.pdf",
+        "title": "جامعة بيت لحم — الدليل الأكاديمي (Bethlehem University Catalog)",
         "page": 29,
-        "article": "10. WITHDRAWAL",
+        "article": "ACADEMIC REGULATIONS — 11. WITHDRAWAL",
         "snippet": "Students may officially withdraw from a course up to the end of the tenth week of classes..."
       }
     ],
     "refused": false,
+    "reason": "answered",
     "feedback": null,
     "created_at": "2026-11-07T10:42:13Z"
   },
@@ -272,9 +277,10 @@ Refusal example (`200`, not an error):
   "answer": {
     "id": 121,
     "role": "assistant",
-    "content": "لا أجد هذه المعلومة في المستندات المتاحة لي. يرجى مراجعة دائرة القبول والتسجيل أو جدول الامتحانات الرسمي.",
+    "content": "لا أجد هذه المعلومة في المستندات المتاحة لي. يرجى مراجعة دائرة القبول والتسجيل أو الجهة المختصة في جامعتك.",
     "sources": [],
     "refused": true,
+    "reason": "not_found",
     "feedback": null,
     "created_at": "2026-11-07T10:45:02Z"
   },
@@ -283,11 +289,12 @@ Refusal example (`200`, not an error):
 ```
 
 **Frontend notes**
-- Answers take **2–15 seconds**. Show the user's message immediately, then a typing indicator.
-  Use a client timeout of **60 s**.
+- Answers usually take **5–20 seconds**. Show the user's message immediately, then a typing indicator.
+  Use a generous client timeout (the web UI uses **120 s**).
 - Disable the send button while waiting (one question at a time per conversation).
 - After the first answer, store `conversation.id` and send it with every follow-up.
-- Show each source as a chip/badge: `BU_English_Catalog.pdf · ص 29`. Clicking it can expand `snippet`.
+- Citation markers like `[1]` in `content` refer to `sources[0]`, `[2]` to `sources[1]`, and so on.
+- Show each source as a chip/badge: `title · ص 29`. Clicking it can expand `snippet`.
 - `503 llm_unavailable` → keep the user's text in the input box and show a "try again" button.
 
 ---
@@ -398,13 +405,16 @@ A high `refused_count` means the documents are missing that information — usef
 
 ---
 
-## 4. UI requirements from the hackathon guide
+## 4. Notes for building another client
+
+These are the rules the built-in web UI (`apps/web/`) follows; other clients should do the same.
 
 - **Arabic first, RTL:** set `<html lang="ar" dir="rtl">`. For message bubbles use `dir="auto"` so mixed
   Arabic/English text (document names, course codes) renders correctly.
 - Use a font with good Arabic support (e.g. *IBM Plex Sans Arabic*, *Cairo*, *Tajawal*).
 - Every answer must visibly show its sources; refusals must look clearly different from answers.
-- Pages: Login/Register · Chat (with conversation sidebar) · Admin: Documents · Admin: Dashboard.
+- Screens: Login · Chat (with conversation sidebar) · Admin: Documents · Admin: Analytics.
+  The web UI has no sign-up page; accounts are created by an admin or through `POST /auth/register/`.
 - Must work on mobile width.
 
 ## 5. Changelog
@@ -412,3 +422,4 @@ A high `refused_count` means the documents are missing that information — usef
 |---|---|---|
 | v1 | 2026-11-07 | First version |
 | v1.1 | 2026-11-07 | Implemented. Source gains `title`; `page` is `null` for .txt; health gains `reindexing`; reindex may return `409`; questions without letters are rejected (`400`) |
+| v1.2 | 2026-11-14 | `[n]` markers in answers are renumbered to match the order of `sources`; login/register are rate limited per IP (`429`) |

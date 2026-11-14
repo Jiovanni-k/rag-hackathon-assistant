@@ -39,7 +39,7 @@
   }
 
   async function loadDocs() {
-    var res = await window.API.get("/documents/");
+    var res = await window.API.getAll("/documents/");
     if (!res.ok) return false;
     var body = document.getElementById("docs-body");
     body.innerHTML = "";

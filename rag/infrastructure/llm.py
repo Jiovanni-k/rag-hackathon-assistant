@@ -23,8 +23,11 @@ class LLMUnavailable(Exception):
 
 @lru_cache(maxsize=1)
 def _client():
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:          # a setup mistake, not an outage: fail loudly instead of "busy"
+        raise RuntimeError("GEMINI_API_KEY is not set. Add it to .env (see .env.example).")
     return genai.Client(
-        api_key=os.environ["GEMINI_API_KEY"],
+        api_key=api_key,
         http_options=types.HttpOptions(timeout=config.LLM_TIMEOUT_MS,
                                        retry_options=types.HttpRetryOptions(attempts=1)),
     )
@@ -43,10 +46,11 @@ def generate(prompt, json_output=False, temperature=0.1, fast=False):
         temperature=temperature,
         response_mime_type="application/json" if json_output else "text/plain",
     )
+    client = _client()
     last = None
     for model in _models(config.LLM_FAST_MODELS if fast else config.LLM_MODELS):
         try:
-            response = _client().models.generate_content(model=model, contents=prompt, config=cfg)
+            response = client.models.generate_content(model=model, contents=prompt, config=cfg)
             text = response.text or ""
             return json.loads(text) if json_output else text
         except errors.APIError as e:

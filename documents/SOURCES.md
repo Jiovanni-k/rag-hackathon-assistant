@@ -1,7 +1,8 @@
 # Document sources
 
-Public documents used for development and testing. All were retrieved on 2026-11-07.
-The official hackathon data package replaces or extends these on competition day.
+Public documents used for development and testing. All were retrieved on 2026-11-07 from the
+universities' official websites and remain the property of their publishers. Replace or extend them
+with your own university's documents (see the README, section "Data").
 
 | File | University | Content | Source |
 |---|---|---|---|

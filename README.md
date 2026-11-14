@@ -1,6 +1,5 @@
 # Latte.py — المرشد الأكاديمي الذكي (Smart Academic Advisor)
 
-
 An academic advisor for Palestinian university students. It answers questions in Arabic, including
 spoken dialect, using **only** official university documents. Every answer cites its source, and it
 refuses ("لا أجد هذه المعلومة…") when the documents do not contain the answer.
@@ -77,7 +76,8 @@ and the Gradio fallback demo (`app.py`) use it directly.
 4. **Generate**: strict prompt (only the excerpts, cite `[n]` after every fact, simple formal Arabic,
    name the university, prefer the newest document version, steps or tables when useful, otherwise
    reply `NOT_FOUND`, which becomes the refusal message).
-5. **Sources**: only the excerpts the answer actually cites are returned as sources.
+5. **Sources**: only the excerpts the answer actually cites are returned as sources, and the `[n]`
+   markers are renumbered so that `[1]` is the first source card, `[2]` the second, and so on.
 
 ### How documents are prepared (`rag/infrastructure/`)
 - **PDF** via PyMuPDF. Tables become one line per row, so a row is never split. Section headings
@@ -117,6 +117,20 @@ Theme: **the campus cat** 🐾, a friendly senior student who knows every rule a
 
 The REST API is documented in [docs/API.md](docs/API.md).
 
+### Project structure
+```
+rag/            RAG core (plain Python): application/, domain/, infrastructure/, config.py
+apps/           Django apps: accounts, chat, documents, analytics, web (templates, CSS, JS), core
+config/         Django settings and URLs
+documents/      Indexed university documents, metadata.json (titles) and SOURCES.md
+test_docs_ar/   Extra Arabic PDFs for testing (not indexed)
+evaluation/     Test questions, evaluation script and latest results
+scripts/        plan_to_text.py: study-plan web page → indexable text
+tests/          Automated API and web tests
+docs/           API reference
+app.py          Gradio fallback demo
+```
+
 ## Setup
 
 Requirements: Python 3.12 or newer (developed and tested with Python 3.14 on Windows), about 2 GB of
@@ -146,8 +160,11 @@ wait about 30 seconds for the models to load before asking the first question.
 | Admin (staff) | `admin` | `admin-demo-2026` | Everything above, plus Documents, Analytics and the Django admin |
 
 These are demo accounts with no real personal data. Override the passwords with
-`DEMO_STUDENT_PASSWORD` / `DEMO_ADMIN_PASSWORD` in `.env`, and set `SHOW_DEMO_ACCOUNTS=false` to hide
-them from the login page.
+`DEMO_STUDENT_PASSWORD` / `DEMO_ADMIN_PASSWORD` in `.env` (then run `create_demo_accounts` again), and
+set `SHOW_DEMO_ACCOUNTS=false` to hide them from the login page.
+
+> **On a public server**, set `SHOW_DEMO_ACCOUNTS=false` and change both passwords (or skip
+> `create_demo_accounts`). The admin account can upload and delete documents.
 
 ### Deployment
 The app runs **locally** (`python manage.py runserver`) and was demonstrated to the judges on our
@@ -162,7 +179,7 @@ laptop. It is not deployed to a public server.
 | Django admin | http://localhost:8000/admin/ |
 | Fallback demo UI | `python app.py` (Gradio) |
 | Evaluation | `python -m evaluation.run_eval` |
-| Automated tests (17 tests, offline, LLM mocked) | `python manage.py test tests` |
+| Automated tests (24 tests, offline, LLM mocked) | `python manage.py test tests` |
 | Rebuild the search index only | `python -m rag.application.ingest_service` |
 | Add a study plan from a web page | `python scripts/plan_to_text.py URL --university "..." --program "..." --out documents/X.txt` |
 
@@ -214,7 +231,10 @@ and running `python manage.py sync_documents --reindex`.
 - The API key never reaches the browser: the browser only talks to our Django server.
 - Session login for the web UI, with CSRF protection on every POST/PATCH/DELETE (logout is POST only).
   Token authentication for other API clients. Admin-only pages and endpoints for documents and
-  analytics. Per-user rate limit on questions (20 per minute).
+  analytics. Per-user rate limit on questions (20 per minute) and per-IP rate limit on API
+  login/register (10 per minute).
+- With `DJANGO_DEBUG=false` the server refuses to start without a real `DJANGO_SECRET_KEY`, and
+  session/CSRF cookies are HTTPS-only.
 - The answer markdown is escaped before rendering, so documents cannot inject HTML or scripts.
 - Uploads are limited to `.pdf`/`.txt` up to 20 MB, and file names are sanitised.
 
@@ -233,4 +253,3 @@ generate answers.
 - Jiovanni Kitlo
 - Lour Qumsiyeh
 - Rama Jboor
-  

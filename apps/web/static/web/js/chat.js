@@ -240,7 +240,7 @@
   }
 
   async function loadConversations() {
-    var res = await window.API.get("/conversations/");
+    var res = await window.API.getAll("/conversations/");
     if (!res.ok) return;
     state.conversations = res.data.results;
     els.convList.innerHTML = "";

@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from rest_framework.test import APIClient
@@ -29,6 +30,7 @@ def fake_answer(text="الحد الأدنى للمعدل هو 2.00 [1].", refuse
 
 class ApiTestCase(TestCase):
     def setUp(self):
+        cache.clear()                  # rate-limit counters must not leak between tests
         self.client = APIClient()
         self.user = User.objects.create_user("sara", "sara@example.com", "S3cure-pass-123")
         self.admin = User.objects.create_user("admin", "a@example.com", "Adm1n-pass-123", is_staff=True)
@@ -63,6 +65,16 @@ class AuthTests(ApiTestCase):
         r = self.client.post(f"{API}/auth/register/", {"username": "x", "password": "123"}, format="json")
         self.assertError(r, 400, "validation_error")
         self.assertIn("password", r.json()["error"]["details"])
+
+    def test_login_is_rate_limited(self):
+        with patch("apps.accounts.views.AuthThrottle.THROTTLE_RATES", {"auth": "2/min"}):
+            for _ in range(2):
+                r = self.client.post(f"{API}/auth/login/", {"username": "sara", "password": "x"},
+                                     format="json")
+                self.assertEqual(r.status_code, 401)
+            r = self.client.post(f"{API}/auth/login/", {"username": "sara", "password": "x"}, format="json")
+        self.assertError(r, 429, "rate_limited")
+        self.assertIn("Retry-After", r)
 
     def test_health_is_public(self):
         with patch("apps.documents.views.vector_store.count", return_value=42):
@@ -195,6 +207,64 @@ class DocumentTests(ApiTestCase):
 
         self.assertEqual(self.client.delete(f"{API}/documents/{doc_id}/").status_code, 204)
         self.assertFalse((self.tmp / "plan.txt").exists())
+
+    def test_full_reindex_keeps_upload_titles(self):
+        (self.tmp / "plan.txt").write_text("# t\nx", encoding="utf-8")
+        (self.tmp / "catalog.pdf").write_bytes(b"%PDF")
+        (self.tmp / "metadata.json").write_text('{"catalog.pdf": {"title": "Catalog title"}}',
+                                                encoding="utf-8")
+        Document.objects.create(title="خطة", filename="plan.txt", version_year=2024)
+        Document.objects.create(title="gone", filename="gone.txt")
+        counts = {"plan.txt": 5, "catalog.pdf": 9, "gone.txt": 0}
+        with patch("apps.documents.services.ingest_service.build_index") as build, \
+                patch("apps.documents.services.vector_store.count", side_effect=lambda n=None: counts[n]):
+            self.assertTrue(doc_services.start_reindex(background=False))
+        self.assertEqual(build.call_args.kwargs["titles"],
+                         {"plan.txt": "خطة (2024)", "catalog.pdf": "Catalog title", "gone.txt": "gone"})
+        catalog = Document.objects.get(filename="catalog.pdf")     # registered from the folder
+        self.assertEqual((catalog.title, catalog.status, catalog.chunk_count), ("Catalog title", "ready", 9))
+        gone = Document.objects.get(filename="gone.txt")
+        self.assertEqual(gone.status, "failed")
+        self.assertIn("missing", gone.error)
+
+    def test_failed_reindex_is_reported(self):
+        Document.objects.create(title="t", filename="plan.txt")
+        with patch("apps.documents.services.ingest_service.build_index", side_effect=OSError("disk")), \
+                patch("apps.documents.services.vector_store.count", return_value=0), \
+                self.assertLogs("apps", "ERROR"):
+            self.assertFalse(doc_services.start_reindex(background=False))
+        self.assertEqual(Document.objects.get().error, "disk")
+
+
+class RagUnitTests(TestCase):
+    """Small checks of the RAG core that need no models or network."""
+
+    def test_rewrite_falls_back_on_unexpected_json(self):
+        from rag.application import ask_service
+        for bad in (["a list"], {"scope": "weird", "standalone": 5}):
+            with patch("rag.application.ask_service.llm.generate", return_value=bad):
+                q = ask_service.rewrite("سؤال؟", [])
+            self.assertEqual(q, {"scope": "academic", "standalone": "سؤال؟", "english": ""})
+
+    def test_citations_are_renumbered_to_match_sources(self):
+        from rag.application.ask_service import _cite
+        from rag.domain.entities import Chunk, Hit
+        hits = [Hit(Chunk(id=str(n), text=f"head\nbody {n}", source=f"d{n}.txt", title=f"T{n}"))
+                for n in range(1, 6)]
+        text, sources = _cite("أ [3]. ب [5، 3]. ج [9]. سنة [2024].", hits)
+        self.assertEqual(text, "أ [1]. ب [2, 1]. ج [9]. سنة [2024].")
+        self.assertEqual([s.document for s in sources], ["d3.txt", "d5.txt"])
+        self.assertEqual(sources[0].snippet, "body 3")
+
+    def test_missing_api_key_is_a_clear_error(self):
+        from rag.infrastructure import llm
+        llm._client.cache_clear()
+        try:
+            with patch.dict("os.environ", {"GEMINI_API_KEY": ""}):
+                with self.assertRaisesMessage(RuntimeError, "GEMINI_API_KEY"):
+                    llm.generate("hi")
+        finally:
+            llm._client.cache_clear()
 
 
 @patch("apps.chat.services.ask_service.ask")

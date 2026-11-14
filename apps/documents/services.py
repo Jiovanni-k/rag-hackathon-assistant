@@ -11,7 +11,7 @@ from django.db import close_old_connections
 from rag import config
 from rag.application import ingest_service
 from rag.infrastructure import vector_store
-from rag.infrastructure.loaders import SUPPORTED
+from rag.infrastructure.loaders import SUPPORTED, load_metadata
 
 from .models import Document
 
@@ -61,11 +61,14 @@ def delete_document(doc):
 
 def sync_from_folder():
     """Register files already in the documents folder (e.g. copied by hand) in the database."""
+    folder = documents_dir()
     known = set(Document.objects.values_list("filename", flat=True))
+    metadata = load_metadata(folder)
     created = 0
-    for path in sorted(documents_dir().iterdir()):
+    for path in sorted(folder.iterdir()):
         if path.suffix.lower() in SUPPORTED and path.name not in known:
-            Document.objects.create(title=path.name, filename=path.name, status=Document.Status.READY,
+            title = metadata.get(path.name, {}).get("title") or path.name
+            Document.objects.create(title=title[:200], filename=path.name, status=Document.Status.READY,
                                     chunk_count=vector_store.count(path.name))
             created += 1
     return created
@@ -76,34 +79,45 @@ def is_reindexing():
 
 
 def _reindex():
+    """Rebuild the whole index. Returns True on success."""
     with _reindex_lock:
         close_old_connections()
         try:
             sync_from_folder()
             Document.objects.update(status=Document.Status.PROCESSING)
-            ingest_service.build_index()
-            for doc in Document.objects.all():
+            docs = list(Document.objects.all())
+            # Keep the titles/years set on upload, as indexing a single file does.
+            titles = {d.filename: t for d in docs if (t := index_title(d))}
+            ingest_service.build_index(titles=titles)
+            folder = documents_dir()
+            for doc in docs:
                 n = vector_store.count(doc.filename)
                 doc.chunk_count = n
                 doc.status = Document.Status.READY if n else Document.Status.FAILED
-                doc.error = None if n else "No text could be extracted from this file."
+                if n:
+                    doc.error = None
+                elif not (folder / doc.filename).exists():
+                    doc.error = "The file is missing from the documents folder."
+                else:
+                    doc.error = "No text could be extracted from this file."
                 doc.save()
+            return True
         except Exception as e:
             log.exception("Re-index failed")
             Document.objects.update(status=Document.Status.FAILED, error=str(e)[:1000])
+            return False
         finally:
             close_old_connections()
 
 
 def start_reindex(background=True):
-    """Returns False if a re-index is already running."""
+    """Returns False if a re-index is already running (or, when not in the background, if it failed)."""
     if is_reindexing():
         return False
     if background:
         threading.Thread(target=_reindex, daemon=True).start()
-    else:
-        _reindex()
-    return True
+        return True
+    return _reindex()
 
 
 def safe_filename(name):

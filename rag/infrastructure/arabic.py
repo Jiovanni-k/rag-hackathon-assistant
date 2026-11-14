@@ -7,8 +7,8 @@ normalize()    -> aggressive folding used only for keyword matching (BM25), so t
 import re
 import unicodedata
 
-TASHKEEL = re.compile(r"[ؐ-ًؚ-ٰٟۖ-ۭ]")
-TATWEEL = "ـ"
+TASHKEEL = re.compile("[\u0610-\u061a\u064b-\u065f\u0670\u06d6-\u06ed]")   # harakat, Quranic marks
+TATWEEL = "\u0640"
 DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
 FOLD = str.maketrans({"أ": "ا", "إ": "ا", "آ": "ا", "ٱ": "ا", "ى": "ي", "ة": "ه", "ؤ": "و", "ئ": "ي"})
 WORD = re.compile(r"\w+")
@@ -24,7 +24,7 @@ the a an of to in on for and or is are be can i my do does what how when which w
 def clean_text(text):
     """Fix PDF artefacts without changing meaning."""
     text = unicodedata.normalize("NFKC", text)      # presentation forms ﺍﻟﻄﺐ -> الطب, ligatures
-    text = text.replace(TATWEEL, "").replace(" ", " ")
+    text = text.replace(TATWEEL, "").replace("\xa0", " ")    # tatweel, non-breaking space
     text = TASHKEEL.sub("", text)
     text = text.translate(DIGITS)
     text = re.sub(r"[ \t]+", " ", text)

@@ -1,4 +1,4 @@
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 from apps.documents import services
 
@@ -11,7 +11,8 @@ class Command(BaseCommand):
 
     def handle(self, *args, **opts):
         if opts["reindex"]:
-            services.start_reindex(background=False)
+            if not services.start_reindex(background=False):
+                raise CommandError("Re-index failed; see the error above.")
             self.stdout.write(self.style.SUCCESS("Index rebuilt."))
         else:
             n = services.sync_from_folder()

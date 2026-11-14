@@ -1,6 +1,24 @@
+# Secrets and local environment
 .env
 .venv/
+venv/
+
+# Generated data (rebuilt with the commands in the README)
 chroma_db/
-__pycache__/
 db.sqlite3
+db.sqlite3-journal
 staticfiles/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

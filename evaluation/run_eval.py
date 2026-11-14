@@ -34,6 +34,9 @@ def check(case, ans):
 
 
 def main():
+    # Arabic output would crash on a Windows console or pipe that is not UTF-8 (e.g. "> log.txt").
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     cases = json.loads((HERE / "test_set.json").read_text(encoding="utf-8"))
     rows, by_type = [], defaultdict(lambda: [0, 0])
     for case in cases:

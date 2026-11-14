@@ -1,13 +1,22 @@
 from django.contrib.auth import authenticate
 from rest_framework import status
 from rest_framework.authtoken.models import Token
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.throttling import SimpleRateThrottle
 
 from apps.core.errors import ApiError
 
 from .serializers import LoginSerializer, RegisterSerializer, UserSerializer
+
+
+class AuthThrottle(SimpleRateThrottle):
+    """Per-IP limit on login/register against password guessing (DEFAULT_THROTTLE_RATES["auth"])."""
+    scope = "auth"
+
+    def get_cache_key(self, request, view):
+        return self.cache_format % {"scope": self.scope, "ident": self.get_ident(request)}
 
 
 def _auth_response(user, code=status.HTTP_200_OK):
@@ -17,6 +26,7 @@ def _auth_response(user, code=status.HTTP_200_OK):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([AuthThrottle])
 def register(request):
     serializer = RegisterSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -25,6 +35,7 @@ def register(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([AuthThrottle])
 def login(request):
     serializer = LoginSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)

@@ -20,6 +20,12 @@ class WebPagesTests(TestCase):
         admin = User.objects.get(username="admin")
         self.assertTrue(admin.is_staff and admin.is_superuser)
 
+    def test_login_page_shows_configured_demo_passwords(self):
+        with self.settings(DEMO_STUDENT_PASSWORD="s-custom-pass", SHOW_DEMO_ACCOUNTS=True):
+            self.assertContains(Client().get("/login/"), "s-custom-pass")
+        with self.settings(SHOW_DEMO_ACCOUNTS=False):
+            self.assertNotContains(Client().get("/login/"), "student-demo-2026")
+
     def test_chat_requires_login_and_login_works(self):
         c = Client()
         r = c.get("/")

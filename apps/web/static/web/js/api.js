@@ -28,7 +28,7 @@
       var data = res.status === 204 ? null : await res.json().catch(function () { return null; });
       if (res.ok) return { ok: true, status: res.status, data: data };
       var err = (data && data.error) || { code: "server_error", message: "" };
-      if (res.status === 401 || res.status === 403 && err.code === "unauthorized") {
+      if (res.status === 401 || (res.status === 403 && err.code === "unauthorized")) {
         err.code = "unauthorized";
       }
       return { ok: false, status: res.status, data: data, error: err };
@@ -54,8 +54,23 @@
     return t("errServer");
   }
 
+  /** GET every page of a paginated list endpoint; returns {ok, data: {results: [...]}} like get(). */
+  async function getAll(path, opts) {
+    var results = [];
+    var next = path;
+    while (next) {
+      var res = await request("GET", next, undefined, opts);
+      if (!res.ok) return res;
+      results = results.concat(res.data.results);
+      // "next" is an absolute URL; keep only the part after /api/v1 so request() can reuse it.
+      next = res.data.next ? res.data.next.slice(res.data.next.indexOf(BASE) + BASE.length) : null;
+    }
+    return { ok: true, status: 200, data: { results: results } };
+  }
+
   window.API = {
     get: function (p, o) { return request("GET", p, undefined, o); },
+    getAll: getAll,
     post: function (p, b, o) { return request("POST", p, b === undefined ? {} : b, o); },
     patch: function (p, b, o) { return request("PATCH", p, b, o); },
     del: function (p, o) { return request("DELETE", p, undefined, o); },
