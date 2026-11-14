@@ -81,14 +81,19 @@ and the Gradio fallback demo (`app.py`) use it directly.
 
 ### How documents are prepared (`rag/infrastructure/`)
 - **PDF** via PyMuPDF. Tables become one line per row, so a row is never split. Section headings
-  ("11. WITHDRAWAL", "المادة (14)") and running page headers are tracked for every line.
+  ("11. WITHDRAWAL", "المادة (14)") and running page headers (top or bottom of the page only, so
+  course codes like "ARAB 120" are kept) are tracked for every line. Lines the PDF wrapped
+  mid-sentence are joined again.
 - **TXT** with `# title` and `## section` lines. University study-plan web pages are converted to
   this format by `scripts/plan_to_text.py`: one self-contained line per course with hours and
   prerequisites (codes resolved to course names).
 - **Arabic normalisation**: diacritics, tatweel, Arabic-Indic digits and PDF presentation forms are
   cleaned. For keyword search, hamza/alef forms, ة/ه and ى/ي are also folded.
 - **Chunking**: about 900 characters, never crossing a section. Every chunk starts with
-  `title | section`, so it always says which university and section it comes from.
+  `title | section`, so it always says which university and section it comes from. Detected
+  tables and prose go in separate chunks, a numbered rule that follows a table starts a new chunk,
+  and a chunk that continues a numbered list repeats the list's lead-in ("To receive a degree a
+  student must complete: (…)"). Fragments under 30 characters join the next chunk.
 - `documents/metadata.json` gives PDFs a readable title (including the university name).
 
 ### Web frontend (`apps/web/`)
@@ -179,7 +184,7 @@ laptop. It is not deployed to a public server.
 | Django admin | http://localhost:8000/admin/ |
 | Fallback demo UI | `python app.py` (Gradio) |
 | Evaluation | `python -m evaluation.run_eval` |
-| Automated tests (24 tests, offline, LLM mocked) | `python manage.py test tests` |
+| Automated tests (29 tests, offline, LLM mocked) | `python manage.py test tests` |
 | Rebuild the search index only | `python -m rag.application.ingest_service` |
 | Add a study plan from a web page | `python scripts/plan_to_text.py URL --university "..." --program "..." --out documents/X.txt` |
 
@@ -203,9 +208,12 @@ every answer in `evaluation/results/latest.json`):
 Each question checks that the right passage was retrieved, that the answer contains the expected
 facts (e.g. "139" credit hours), and that out-of-scope or missing information is refused.
 
-**Why two questions fail:** the Bethlehem University rule "minimum of 60 credits at Bethlehem
-University" is printed under a long program table in the PDF, so its chunk is mostly table and is
-ranked too low.
+**Why two questions fail:** both need the Bethlehem University rule "a minimum of 60 credits at
+Bethlehem University". It is printed after a long program table in the PDF. The chunking now gives
+it its own chunk with the list's lead-in, and vector search finds it among the candidates, but the
+small cross-encoder reranker (`mmarco-mMiniLMv2`) still ranks it 5th–12th, and only the top 6
+passages reach the LLM. A stronger multilingual reranker, or sending more passages to the LLM,
+would likely fix both; we kept the faster setup.
 
 **What we improved, measured with this set:**
 | Change | Effect |
@@ -214,6 +222,7 @@ ranked too low.
 | PyMuPDF instead of pypdf, section-aware chunks | Graduation GPA rule and the Accounting credit table became retrievable |
 | Refusal cutoff calibrated on real distances (0.8 → 0.20) | Off-topic questions are now refused (before: answered) |
 | Reranking fewer candidates, fast model for rewriting, skip overloaded Gemini models | Average answer time 24 s → 13 s |
+| Course codes no longer mistaken for page headers; no near-empty chunks | Catalog: 339 fragment chunks ("CR", "First Year") → 0; course codes kept in the semester plans |
 
 ## Data
 All documents and their source URLs are listed in [documents/SOURCES.md](documents/SOURCES.md):
