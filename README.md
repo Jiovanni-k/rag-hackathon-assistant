@@ -1,33 +1,38 @@
-# Latte.py — المرشد الأكاديمي الذكي (Smart Academic Advisor)
+# Qitta Academic Advisor — قطّة، المرشد الأكاديمي الذكي
 
-An academic advisor for Palestinian university students. It answers questions in Arabic, including
-spoken dialect, using **only** official university documents. Every answer cites its source, and it
-refuses ("لا أجد هذه المعلومة…") when the documents do not contain the answer.
+**Qitta** (قطّة, "cat") is an AI academic advisor for university students. It answers questions in
+Arabic, including spoken dialect, and in English, using **only** official university documents:
+regulations, catalogs and study plans. Every answer cites its source, and when the documents do not
+contain the answer it says so ("لا أجد هذه المعلومة…") instead of guessing.
 
-Built by team **Latte.py** for the IEEE RAG Hackathon at Bethlehem University.
+It is a complete web application: students chat with the advisor and keep their conversations, and
+university staff upload documents and follow usage on an analytics dashboard. Under the hood it is a
+retrieval-augmented generation (RAG) system with hybrid search, reranking and Google Gemini.
 
-## Problem
+## Why
 Every semester, students need answers that are buried in long university documents: the student
 handbook, the study and exam regulations, and the study plans. A first-year student does not know how
-many courses she may register for, a student who failed a course worries that it blocks the next one,
-and a fourth-year student wants to know exactly what is left before graduation. The information
+many courses they may register for, a student who failed a course worries that it blocks the next
+one, and a fourth-year student wants to know exactly what is left before graduation. The information
 exists, but it is spread across documents written in formal Arabic (or English), while students ask
 in their own dialect. Academic offices spend a lot of time answering the same questions, and a wrong
 answer can cost a student credit hours, an extra semester or an academic warning.
 
-To confirm the problem, we ran a short survey among students. The results are presented in our
-business plan.
+Qitta gives students an instant answer with the exact source, and tells them clearly when they need
+to ask the registration office instead.
 
-## What it can do
-- Answer questions in Arabic (formal or dialect) and English from the university documents only.
-- Cite every fact: document, page or section, with the retrieved text one click away.
-- Refuse clearly when the documents do not contain the answer, and point the student to the
-  Admissions & Registration office. Refuse politely when a request is not academic.
-- Understand follow-up questions in the same conversation («وإذا كان معدلي أعلى؟»).
-- Read study-plan tables: course codes, credit hours, prerequisites, semester-by-semester plans.
+## Features
+- Answers questions in Arabic (formal or dialect) and English from the university documents only.
+- Cites every fact: document, page or section, with the retrieved text one click away.
+- Refuses clearly when the documents do not contain the answer and points the student to the
+  Admissions & Registration office. Politely declines requests that are not academic.
+- Understands follow-up questions in the same conversation («وإذا كان معدلي أعلى؟»).
+- Reads study-plan tables: course codes, credit hours, prerequisites, semester-by-semester plans.
+- Handles several universities at once and says which university each rule comes from.
 - Web app with an Arabic right-to-left layout and an English toggle, login, saved conversations,
   👍/👎 feedback, a staff page to upload documents and re-index, an analytics dashboard, and the
   Django admin.
+- A documented REST API ([docs/API.md](docs/API.md)) for other clients, such as a mobile app.
 
 ## Architecture
 
@@ -50,12 +55,12 @@ business plan.
 ```
 
 Each layer only calls the layer below it. The RAG core has no Django code, so the evaluation script
-and the Gradio fallback demo (`app.py`) use it directly.
+and the Gradio demo (`app.py`) use it directly.
 
 ### Technology choices
 | Part | Choice | Why |
 |---|---|---|
-| Embeddings | `intfloat/multilingual-e5-small` | Arabic (incl. dialect) and English in one vector space; small enough for a laptop CPU; free and local; recommended in the hackathon guide |
+| Embeddings | `intfloat/multilingual-e5-small` | Arabic (incl. dialect) and English in one vector space; small enough for a laptop CPU; free and local |
 | Vector store | ChromaDB (on disk, cosine distance) | No separate server; stores file, title, section and page with every chunk for citations; can replace one document's chunks on upload or delete |
 | Keyword search | BM25 (`rank-bm25`) on normalised Arabic | Catches exact course codes and numbers that embeddings blur |
 | Reranker | `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` | Multilingual; reads question and chunk together, much more precise than vectors alone |
@@ -97,7 +102,8 @@ and the Gradio fallback demo (`app.py`) use it directly.
 - `documents/metadata.json` gives PDFs a readable title (including the university name).
 
 ### Web frontend (`apps/web/`)
-Theme: **the campus cat** 🐾, a friendly senior student who knows every rule and always shows the source.
+Theme: **the campus cat** 🐾, the "qitta" of the name: a friendly senior student who knows every
+rule and always shows the source.
 - **Django templates + plain CSS + vanilla JavaScript.** Templates are in `apps/web/templates/web/`,
   CSS and JS in `apps/web/static/web/`.
 - Pages are thin shells. All data comes from the same REST API (`/api/v1`) that other clients use,
@@ -114,13 +120,11 @@ Theme: **the campus cat** 🐾, a friendly senior student who knows every rule a
 - **JavaScript files:** `i18n.js` (UI strings, RTL/LTR), `api.js` (fetch, CSRF, friendly errors),
   `markdown.js` (a safe renderer: everything is escaped first), `chat.js`, `staff_documents.js`,
   `staff_analytics.js`.
-- The product name is set in one place: `PRODUCT_NAME` / `PRODUCT_NAME_EN` in `.env`.
+- The name shown in the UI is set in one place: `PRODUCT_NAME` / `PRODUCT_NAME_EN` in `.env`.
 - The AI models are loaded in the background when the server starts, so the first question is not
   slowed down by model loading.
 - Works on phones (the sidebar becomes a slide-in drawer). The Tajawal font comes from Google Fonts,
   with system fonts as an offline fallback.
-
-The REST API is documented in [docs/API.md](docs/API.md).
 
 ### Project structure
 ```
@@ -131,12 +135,12 @@ documents/      Indexed university documents, metadata.json (titles) and SOURCES
 test_docs_ar/   Extra Arabic PDFs for testing (not indexed)
 evaluation/     Test questions, evaluation script and latest results
 scripts/        plan_to_text.py: study-plan web page → indexable text
-tests/          Automated API and web tests
+tests/          Automated API, web and chunking tests
 docs/           API reference
-app.py          Gradio fallback demo
+app.py          Gradio demo of the RAG core
 ```
 
-## Setup
+## Getting started
 
 Requirements: Python 3.12 or newer (developed and tested with Python 3.14 on Windows), about 2 GB of
 free RAM for the AI models, an internet connection (the answers come from the Gemini API), and a free
@@ -171,28 +175,38 @@ set `SHOW_DEMO_ACCOUNTS=false` to hide them from the login page.
 > **On a public server**, set `SHOW_DEMO_ACCOUNTS=false` and change both passwords (or skip
 > `create_demo_accounts`). The admin account can upload and delete documents.
 
-### Deployment
-The app runs **locally** (`python manage.py runserver`) and was demonstrated to the judges on our
-laptop. It is not deployed to a public server.
-
-## Run
-
+### Commands
 | What | Command |
 |---|---|
 | **Web app** | `python manage.py runserver` → http://localhost:8000 |
 | REST API | http://localhost:8000/api/v1/ (see [docs/API.md](docs/API.md)) |
 | Django admin | http://localhost:8000/admin/ |
-| Fallback demo UI | `python app.py` (Gradio) |
+| Gradio demo of the RAG core | `python app.py` |
 | Evaluation | `python -m evaluation.run_eval` |
 | Automated tests (29 tests, offline, LLM mocked) | `python manage.py test tests` |
 | Rebuild the search index only | `python -m rag.application.ingest_service` |
 | Add a study plan from a web page | `python scripts/plan_to_text.py URL --university "..." --program "..." --out documents/X.txt` |
 
-## Evaluation results
+### Deploying
+Qitta runs locally out of the box. For a server, set in the environment: `DJANGO_DEBUG=false`, a
+long random `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS` (your
+`https://` address), `GEMINI_API_KEY`, and optionally `DATABASE_URL` for PostgreSQL. Then:
 
-17 questions covering the 7 question types from the hackathon guide, run end to end (rewrite,
-retrieval, answer) on the documents in `documents/` (`evaluation/test_set.json`; full output with
-every answer in `evaluation/results/latest.json`):
+```bash
+python manage.py migrate
+python manage.py collectstatic --noinput
+python manage.py sync_documents --reindex
+gunicorn config.wsgi --workers 1 --threads 4 --timeout 120
+```
+
+Use a single worker process: document indexing runs in a background thread and the AI models are
+loaded once per process. Static files are served by WhiteNoise.
+
+## Evaluation
+
+17 questions covering 7 question types, run end to end (rewrite, retrieval, answer) on the documents
+in `documents/` (`evaluation/test_set.json`; full output with every answer in
+`evaluation/results/latest.json`):
 
 | Type | Passed |
 |---|---|
@@ -231,13 +245,13 @@ An-Najah National University (Law and Medicine study plans) and Palestine Techni
 Kadoorie (Computer Science study plan and semester-by-semester advising plan). No personal student
 data is used. No model is trained or fine-tuned: this is RAG.
 
-New documents can be added by an admin on the Documents page, or by copying them into `documents/`
-and running `python manage.py sync_documents --reindex`.
+To use Qitta for your own university, add its documents on the Documents page (admin), or copy them
+into `documents/` and run `python manage.py sync_documents --reindex`.
 
 ## Security
 - No secrets in code: the Gemini API key and the Django secret key come from `.env`
   (see `.env.example`), which is git-ignored.
-- The API key never reaches the browser: the browser only talks to our Django server.
+- The API key never reaches the browser: the browser only talks to the Django server.
 - Session login for the web UI, with CSRF protection on every POST/PATCH/DELETE (logout is POST only).
   Token authentication for other API clients. Admin-only pages and endpoints for documents and
   analytics. Per-user rate limit on questions (20 per minute) and per-IP rate limit on API
@@ -247,6 +261,10 @@ and running `python manage.py sync_documents --reindex`.
 - The answer markdown is escaped before rendering, so documents cannot inject HTML or scripts.
 - Uploads are limited to `.pdf`/`.txt` up to 20 MB, and file names are sanitised.
 
+## Origin
+Qitta was created by team **Latte.py** for the IEEE RAG Hackathon at Bethlehem University, and has
+been developed further since. The starting point was the BinX Tech RAG Bootcamp lecture code.
+
 ## AI usage disclosure
 We built this project with **Claude Code** (Anthropic's AI coding assistant). Under our direction,
 Claude Code generated most of the code and documentation: the layered RAG core (document loading,
@@ -254,11 +272,10 @@ Arabic normalisation, chunking, hybrid search, reranking, prompts), the evaluati
 the study-plan converter, the Django REST API, the web frontend (`apps/web/`), the automated tests,
 the API documentation and this README. It also helped research public university documents and
 diagnose problems (Arabic PDF extraction, slow responses, refusal threshold). We chose the features
-and the theme, reviewed and tested the results, and understand and can explain every part. The
-starting point was the BinX Tech RAG Bootcamp lecture code. The app itself uses Google Gemini to
-generate answers.
+and the theme, reviewed and tested the results, and understand and can explain every part. The app
+itself uses Google Gemini to generate answers.
 
-## Team — Latte.py
+## Team
 - Jiovanni Kitlo
 - Lour Qumsiyeh
 - Rama Jboor
