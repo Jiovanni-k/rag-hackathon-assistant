@@ -24,6 +24,9 @@ HEADING_PATTERNS = [
     re.compile(r"^(الفصل|الباب|القسم)\s+(ال)?\S+\s*[:：]?\s*\S*.{0,50}$"),  # الفصل الثالث: ...
 ]
 TOC_LINE = re.compile(r"\.{5,}")       # "Orientation ........ 14"
+COURSE_CODE = re.compile(r"^[A-Z]{2,5}\s?\d{3}[A-Z]?(\s+\d)?$")   # "ARAB 120", "PSED101", "ENGL 121 3"
+# Starts with a lowercase English word, but is not a list marker such as "a. Status:" or "(ii)".
+WRAPPED_LINE = re.compile(r"^(?![a-z][.)]\s)(?!\(?[ivx]+\)\s)[a-z]")
 
 
 @dataclass
@@ -31,9 +34,12 @@ class Block:
     text: str
     page: int
     section: str
+    kind: str = "text"     # "text" or "table" (a row of a detected PDF table)
 
 
 def is_heading(line):
+    if COURSE_CODE.match(line):         # "ARAB 120" is part of a course row, not a heading
+        return False
     return len(line) <= 90 and any(p.match(line) for p in HEADING_PATTERNS)
 
 
@@ -95,16 +101,25 @@ def load_pdf(path):
                 lines = lines[1:]
             if lines and lines[-1].isdigit():
                 lines = lines[:-1]
-            merged = []
-            for line in lines:
-                if merged and re.fullmatch(r"[\d.,%()\-– ]{1,12}", line) and not is_heading(merged[-1]):
+            # An English line that starts in lowercase continues the previous line, which the PDF
+            # wrapped ("6. A" / "minimum of 60 credits ..."); joining keeps each sentence whole.
+            # The running page header ("20  ACADEMIC REGULATIONS") is only looked for at the top or
+            # bottom of the page; elsewhere the same shape is a course code such as "ARAB 120".
+            header_at = {i for i in (0, 1, len(lines) - 2, len(lines) - 1)
+                         if 0 <= i < len(lines) and RUNNING_HEADER.match(lines[i])}
+            merged, merged_header = [], []
+            for i, line in enumerate(lines):
+                joinable = merged and not merged_header[-1] and not is_heading(merged[-1])
+                if i not in header_at and joinable and (re.fullmatch(r"[\d.,%()\-– ]{1,12}", line)
+                                                        or WRAPPED_LINE.match(line)):
                     merged[-1] += f" {line}"
                 else:
                     merged.append(line)
+                    merged_header.append(i in header_at)
             lines = merged
 
-            for line in lines:
-                m = RUNNING_HEADER.match(line)
+            for line, is_header in zip(lines, merged_header):
+                m = RUNNING_HEADER.match(line) if is_header else None
                 if m:                                          # chapter name from the page header
                     new_chapter = (m.group(1) or m.group(2)).strip()
                     if new_chapter != chapter:
@@ -117,7 +132,7 @@ def load_pdf(path):
                 blocks.append(Block(line, page_no, label))
             label = " — ".join(x for x in (chapter, section) if x)
             for t in tables:
-                blocks += [Block(l, page_no, label) for l in _table_lines(t)]
+                blocks += [Block(l, page_no, label, "table") for l in _table_lines(t)]
     return blocks
 
 

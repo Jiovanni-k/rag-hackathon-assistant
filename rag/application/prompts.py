@@ -33,7 +33,9 @@ Return JSON with exactly these keys:
 - "standalone": the new message rewritten as ONE complete, standalone question in Modern Standard
   Arabic. Use the conversation to resolve follow-ups (e.g. "وإذا كان معدلي أعلى؟", "وكم ساعة إلها؟")
   by restating the subject, university and program from earlier messages. Keep course codes,
-  numbers and university/program names. Do not answer it.
+  numbers and university/program names, and keep every qualifier of the new message (e.g.
+  "بالجامعة نفسها" = at this university itself, "بأول فصل" = in the first semester): do not
+  broaden or narrow the question. Do not answer it.
 - "english": the same standalone question translated into a short formal English search query.
 """
 
